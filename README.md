@@ -4,7 +4,7 @@
 
 A single Bash script that manages WordPress plugin and theme updates using nothing but the [WordPress.org REST API](https://api.wordpress.org) and standard Unix tools (`curl`, `unzip`, optionally `python3` and `git`). Drop it anywhere you have shell access to a WordPress installation — no WP-CLI binary, no `wp-config.php` parsing, and no live database connection needed.
 
-Originally conceived as a lightweight drop-in for environments where WP-CLI installation is impractical (shared hosting, CI pipelines, minimal containers), this script has grown to integrate the featureset of WP-CLI v2.10–v2.12 for the update and integrity-checking workflows.
+Originally conceived as a lightweight drop-in for environments where WP-CLI installation is impractical (shared hosting, CI pipelines, minimal containers), this script has grown to integrate the featureset of WP-CLI v2.10–v2.12 for the update and integrity-checking workflows. If you need more than what this script provides, support the OG project that inspired it: https://wp-cli.org
 
 ---
 
