@@ -90,6 +90,65 @@ show_help() {
     echo "  bash $0 --wp-path /var/www/html --plugins-only --skip-update-check"
 }
 
+check_dependencies() {
+    local missing_critical=() missing_optional=()
+
+    # curl: required for WordPress.org API queries and downloads
+    if ! command -v curl >/dev/null 2>&1; then
+        if [ "$SKIP_UPDATE_CHECK" -eq 0 ]; then
+            missing_critical+=("curl      — needed for WordPress.org API queries and plugin/theme downloads")
+        else
+            missing_optional+=("curl      — needed to download updates (not required with --skip-update-check)")
+        fi
+    fi
+
+    # unzip: required to extract downloaded zip archives
+    if ! command -v unzip >/dev/null 2>&1; then
+        if [ "$DRY_RUN" -eq 0 ] && [ "$SKIP_UPDATE_CHECK" -eq 0 ]; then
+            missing_critical+=("unzip     — needed to extract downloaded plugin/theme zip archives")
+        else
+            missing_optional+=("unzip     — needed to extract archives when applying updates")
+        fi
+    fi
+
+    # python3: only required for --verify-checksums
+    if [ "$VERIFY_CHECKSUMS" -eq 1 ] && ! command -v python3 >/dev/null 2>&1; then
+        missing_critical+=("python3   — needed for --verify-checksums (JSON parsing and MD5 hashing)")
+    fi
+
+    # git: optional, used for automatic commit creation after each update
+    if [ "$NO_GIT" -eq 0 ] && ! command -v git >/dev/null 2>&1; then
+        missing_optional+=("git       — not found; git commits will be skipped (suppress with --no-git)")
+    fi
+
+    if [ ${#missing_critical[@]} -gt 0 ] || [ ${#missing_optional[@]} -gt 0 ]; then
+        echo "=== Dependency Check ==="
+        echo
+    fi
+
+    if [ ${#missing_critical[@]} -gt 0 ]; then
+        echo "❌ Missing required tools:"
+        for dep in "${missing_critical[@]}"; do
+            echo "     • $dep"
+        done
+        echo
+    fi
+
+    if [ ${#missing_optional[@]} -gt 0 ]; then
+        echo "⚠️  Missing optional tools:"
+        for dep in "${missing_optional[@]}"; do
+            echo "     • $dep"
+        done
+        echo
+    fi
+
+    if [ ${#missing_critical[@]} -gt 0 ]; then
+        echo "Install the missing tool(s) above and re-run, or adjust your flags to work around them."
+        echo
+        exit 1
+    fi
+}
+
 # ---- Argument Parsing -------------------------------------------------------
 INVOKED_CMD="$0 $*"
 while [[ $# -gt 0 ]]; do
@@ -137,6 +196,9 @@ if [ "$SHOW_HELP" -eq 1 ]; then
     read -r -p "Press Enter to exit..." dummy
     exit 0
 fi
+
+# ---- Dependency Check -------------------------------------------------------
+check_dependencies
 
 # ---- Paths ------------------------------------------------------------------
 WP_PATH="${WP_PATH%/}"  # Strip trailing slash
