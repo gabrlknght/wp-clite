@@ -50,8 +50,8 @@ bash wp-clite.sh [options]
 | `--dry-run` | Simulate every action without downloading or modifying any files. All output is still written to the log. Git operations are automatically disabled in this mode. |
 | `--log [file]` | Write all output to a log file. If no filename is provided, a timestamped name (`wp-update-logfile-YYYYMMDD-HHMMSS.txt`) is used. |
 | `--yes` / `--auto-yes` | Skip all interactive prompts and approve every available update automatically. |
-| `--plugins-only` | Scan and update plugins only; skip the themes pass. |
-| `--themes-only` | Scan and update themes only; skip the plugins pass. |
+| `--plugins-only` | Scan and update plugins only; skip the themes. |
+| `--themes-only` | Scan and update themes only; skip the plugins. |
 | `--minor` | **Version pinning.** Only update within the same major version. An update from `2.1.0` to `3.0.0` is skipped; `2.1.0` to `2.2.0` is allowed. *(Mirrors WP-CLI v2.10.0 `--minor` flag.)* |
 | `--patch` | **Version pinning.** Only update within the same major.minor version. An update from `2.1.0` to `2.2.0` is skipped; `2.1.0` to `2.1.4` is allowed. *(Mirrors WP-CLI v2.10.0 `--patch` flag.)* |
 | `--skip-update-check` | List all installed plugins and themes with their local versions without querying the WordPress.org API at all. Useful for inventorying an air-gapped site. *(Mirrors WP-CLI v2.12.0 `--skip-update-check` flag.)* |
