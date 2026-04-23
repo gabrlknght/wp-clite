@@ -30,6 +30,13 @@ cd wp-clite
 
 # Make the script executable
 chmod +x wp-clite.sh
+
+# (Optional) Add the script directory to your $PATH so you can run it from anywhere
+# Example (persistent, for bash/zsh):
+#  echo 'export PATH="\$PATH:/path/to/wp-clite"' >> ~/.profile
+#  source ~/.profile
+# Example (current session only):
+#  export PATH="\$PATH:/path/to/wp-clite"
 ```
 
 No package manager, no Composer, no dependencies to install. It's ready to go.
