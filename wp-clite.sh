@@ -2,7 +2,7 @@
 
 # -----------------------------------------------------------------------------
 # WP-CLite — WP-CLI "Lite" Edition
-# Version: 2.0.0
+# Version: 2.1.0
 #
 # Manages WordPress plugin and theme updates without requiring WP-CLI or
 # direct database access. Uses the WordPress.org REST API for version and
@@ -24,15 +24,6 @@
 #   --wp-version <ver>     Override detected WP version for compat checks.
 #   --php-version <ver>    Override detected PHP version for compat checks.
 #   --help                 Show this help message.
-#
-# WP Auto Compatibility checking:
-#   Updates requiring a newer WP or PHP than your environment provides are
-#   shown as 'unavailable' and skipped automatically.
-#
-# WP File Checksum verification:
-#   --verify-checksums compares every tracked WP core file against the
-#   official MD5 hashes from the WordPress.org checksums API. No database
-#   connection required. Requires python3.
 # -----------------------------------------------------------------------------
 
 # ---- Flags & Defaults -------------------------------------------------------
@@ -60,9 +51,7 @@ COUNT_PINNED=0
 COUNT_SKIPPED=0
 COUNT_FAILED=0
 
-# ---- Helpers ----------------------------------------------------------------
-log() { echo "$1"; }
-
+# ---- Help -------------------------------------------------------------------
 show_help() {
     echo "Usage: bash $0 [options]"
     echo
@@ -90,10 +79,10 @@ show_help() {
     echo "  bash $0 --wp-path /var/www/html --plugins-only --skip-update-check"
 }
 
+# ---- Dependencies -----------------------------------------------------------
 check_dependencies() {
     local missing_critical=() missing_optional=()
 
-    # curl: required for WordPress.org API queries and downloads
     if ! command -v curl >/dev/null 2>&1; then
         if [ "$SKIP_UPDATE_CHECK" -eq 0 ]; then
             missing_critical+=("curl      — needed for WordPress.org API queries and plugin/theme downloads")
@@ -102,7 +91,6 @@ check_dependencies() {
         fi
     fi
 
-    # unzip: required to extract downloaded zip archives
     if ! command -v unzip >/dev/null 2>&1; then
         if [ "$DRY_RUN" -eq 0 ] && [ "$SKIP_UPDATE_CHECK" -eq 0 ]; then
             missing_critical+=("unzip     — needed to extract downloaded plugin/theme zip archives")
@@ -111,12 +99,10 @@ check_dependencies() {
         fi
     fi
 
-    # python3: only required for --verify-checksums
     if [ "$VERIFY_CHECKSUMS" -eq 1 ] && ! command -v python3 >/dev/null 2>&1; then
         missing_critical+=("python3   — needed for --verify-checksums (JSON parsing and MD5 hashing)")
     fi
 
-    # git: optional, used for automatic commit creation after each update
     if [ "$NO_GIT" -eq 0 ] && ! command -v git >/dev/null 2>&1; then
         missing_optional+=("git       — not found; git commits will be skipped (suppress with --no-git)")
     fi
@@ -128,17 +114,13 @@ check_dependencies() {
 
     if [ ${#missing_critical[@]} -gt 0 ]; then
         echo "❌ Missing required tools:"
-        for dep in "${missing_critical[@]}"; do
-            echo "     • $dep"
-        done
+        for dep in "${missing_critical[@]}"; do echo "     • $dep"; done
         echo
     fi
 
     if [ ${#missing_optional[@]} -gt 0 ]; then
         echo "⚠️  Missing optional tools:"
-        for dep in "${missing_optional[@]}"; do
-            echo "     • $dep"
-        done
+        for dep in "${missing_optional[@]}"; do echo "     • $dep"; done
         echo
     fi
 
@@ -155,7 +137,7 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --dry-run)
             DRY_RUN=1
-            NO_GIT=1  # Always skip git in dry-run mode
+            NO_GIT=1
             shift ;;
         --log)
             if [[ -z "${2:-}" || "${2:-}" == --* ]]; then
@@ -164,28 +146,25 @@ while [[ $# -gt 0 ]]; do
             else
                 LOG_FILE="$2"; shift 2
             fi ;;
-        --yes|--auto-yes)     AUTO_YES=1; shift ;;
-        --plugins-only)       PLUGINS_ONLY=1; shift ;;
-        --themes-only)        THEMES_ONLY=1; shift ;;
-        --no-git)             NO_GIT=1; shift ;;
-        --minor)              MINOR_ONLY=1; shift ;;
-        --patch)              PATCH_ONLY=1; shift ;;
-        --skip-update-check)  SKIP_UPDATE_CHECK=1; shift ;;
-        --verify-checksums)   VERIFY_CHECKSUMS=1; shift ;;
-        --maintenance-mode)   MAINTENANCE_MODE=1; shift ;;
-        --wp-path)            WP_PATH="${2:-.}"; shift 2 ;;
-        --wp-version)         WP_VERSION_OVERRIDE="$2"; shift 2 ;;
-        --php-version)        PHP_VERSION_OVERRIDE="$2"; shift 2 ;;
-        --help|-h)            SHOW_HELP=1; shift ;;
-        *)                    shift ;;
+        --yes|--auto-yes)    AUTO_YES=1; shift ;;
+        --plugins-only)      PLUGINS_ONLY=1; shift ;;
+        --themes-only)       THEMES_ONLY=1; shift ;;
+        --no-git)            NO_GIT=1; shift ;;
+        --minor)             MINOR_ONLY=1; shift ;;
+        --patch)             PATCH_ONLY=1; shift ;;
+        --skip-update-check) SKIP_UPDATE_CHECK=1; shift ;;
+        --verify-checksums)  VERIFY_CHECKSUMS=1; shift ;;
+        --maintenance-mode)  MAINTENANCE_MODE=1; shift ;;
+        --wp-path)           WP_PATH="${2:-.}"; shift 2 ;;
+        --wp-version)        WP_VERSION_OVERRIDE="$2"; shift 2 ;;
+        --php-version)       PHP_VERSION_OVERRIDE="$2"; shift 2 ;;
+        --help|-h)           SHOW_HELP=1; shift ;;
+        *)                   shift ;;
     esac
 done
 
 # ---- Log Setup --------------------------------------------------------------
-if [ -z "$LOG_FILE" ]; then
-    LOG_FILE="wp-update-logfile-$(date +%Y%m%d-%H%M%S).txt"
-fi
-
+: "${LOG_FILE:=wp-update-logfile-$(date +%Y%m%d-%H%M%S).txt}"
 echo "$INVOKED_CMD" > "$LOG_FILE"
 echo >> "$LOG_FILE"
 exec > >(tee -a "$LOG_FILE") 2>&1
@@ -193,22 +172,19 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 if [ "$SHOW_HELP" -eq 1 ]; then
     show_help
     echo
-    read -r -p "Press Enter to exit..." dummy
+    read -r -p "Press Enter to exit..." _dummy
     exit 0
 fi
 
-# ---- Dependency Check -------------------------------------------------------
 check_dependencies
 
 # ---- Paths ------------------------------------------------------------------
-WP_PATH="${WP_PATH%/}"  # Strip trailing slash
+WP_PATH="${WP_PATH%/}"
 
-# Support both WP-root layout (wp-content/plugins) and legacy wp-content layout
 if [ -d "${WP_PATH}/wp-content/plugins" ]; then
     PLUGIN_DIR="${WP_PATH}/wp-content/plugins"
     THEME_DIR="${WP_PATH}/wp-content/themes"
 else
-    # Legacy: script is run from inside wp-content/
     PLUGIN_DIR="${WP_PATH}/plugins"
     THEME_DIR="${WP_PATH}/themes"
 fi
@@ -219,19 +195,13 @@ MAINTENANCE_FILE="${WP_PATH}/.maintenance"
 # ---- Environment Detection --------------------------------------------------
 detect_wp_version() {
     local vfile="${WP_PATH}/wp-includes/version.php"
-    if [ -f "$vfile" ]; then
-        grep -o "\$wp_version = '[^']*'" "$vfile" | cut -d"'" -f2
-    else
-        echo ""
-    fi
+    [ -f "$vfile" ] && grep -o "\$wp_version = '[^']*'" "$vfile" | cut -d"'" -f2 || echo ""
 }
 
 detect_php_version() {
-    if command -v php >/dev/null 2>&1; then
-        php -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION . '.' . PHP_RELEASE_VERSION;"
-    else
-        echo ""
-    fi
+    command -v php >/dev/null 2>&1 \
+        && php -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION . '.' . PHP_RELEASE_VERSION;" \
+        || echo ""
 }
 
 if [ -n "$WP_VERSION_OVERRIDE" ]; then
@@ -254,16 +224,8 @@ fi
     || echo "⚠️  Could not detect PHP version (use --php-version to override)."
 echo
 
-# ---- Startup Info -----------------------------------------------------------
-if [ "$DRY_RUN" -eq 1 ]; then
-    echo "Starting DRY RUN — no real changes will be made."
-    echo
-fi
-
-if [ "$SKIP_UPDATE_CHECK" -eq 1 ]; then
-    echo "Note: --skip-update-check is active; WordPress.org API queries skipped."
-    echo
-fi
+[ "$DRY_RUN" -eq 1 ]           && echo "Starting DRY RUN — no real changes will be made." && echo
+[ "$SKIP_UPDATE_CHECK" -eq 1 ] && echo "Note: --skip-update-check is active; WordPress.org API queries skipped." && echo
 
 # ---- Directory Validation ---------------------------------------------------
 if [ "$THEMES_ONLY" -eq 0 ] && [ ! -d "$PLUGIN_DIR" ]; then
@@ -299,9 +261,8 @@ disable_maintenance_mode() {
 
 # Returns 0 (true) if installed version $1 satisfies requirement $2.
 version_gte() {
-    local installed="$1"
-    local required="$2"
-    [ -z "$required" ] && return 0  # No requirement — always satisfied
+    local installed="$1" required="$2"
+    [ -z "$required" ] && return 0
     [ "$(printf '%s\n' "$required" "$installed" | sort -V | head -n1)" = "$required" ]
 }
 
@@ -317,9 +278,8 @@ update_allowed_by_pinning() {
     fi
 }
 
-# Determines update status for a single extension.
 # Echoes one of: available | unavailable | pinned | none
-# Args: $1=current $2=latest $3=req_wp $4=req_php
+# Args: current latest req_wp req_php
 get_update_status() {
     local current="$1" latest="$2" req_wp="$3" req_php="$4"
 
@@ -328,48 +288,32 @@ get_update_status() {
     fi
 
     if [ -n "$req_wp" ] && [ -n "$INSTALLED_WP_VERSION" ]; then
-        if ! version_gte "$INSTALLED_WP_VERSION" "$req_wp"; then
-            echo "unavailable"; return
-        fi
+        version_gte "$INSTALLED_WP_VERSION" "$req_wp" || { echo "unavailable"; return; }
     fi
 
     if [ -n "$req_php" ] && [ -n "$INSTALLED_PHP_VERSION" ]; then
-        if ! version_gte "$INSTALLED_PHP_VERSION" "$req_php"; then
-            echo "unavailable"; return
-        fi
+        version_gte "$INSTALLED_PHP_VERSION" "$req_php" || { echo "unavailable"; return; }
     fi
 
-    if ! update_allowed_by_pinning "$current" "$latest"; then
-        echo "pinned"; return
-    fi
+    update_allowed_by_pinning "$current" "$latest" || { echo "pinned"; return; }
 
     echo "available"
 }
 
-# ---- WordPress.org API Queries ----------------------------------------------
+# ---- WordPress.org API ------------------------------------------------------
 
 # Echoes "latest_version|requires_wp|requires_php" or "N/A||" on failure.
-check_wp_plugin_api() {
-    local slug="$1"
-    local response
-    response=$(curl -sf "https://api.wordpress.org/plugins/info/1.0/${slug}.json") \
-        || { echo "N/A||"; return; }
-    [[ "$response" != *'"version"'* ]] && { echo "N/A||"; return; }
+# Args: $1=type (plugin|theme)  $2=slug
+query_wp_api() {
+    local type="$1" slug="$2" url response
 
-    local version requires req_php
-    version=$(echo  "$response" | grep -o '"version":"[^"]*"'      | head -1 | cut -d'"' -f4)
-    requires=$(echo "$response" | grep -o '"requires":"[^"]*"'     | head -1 | cut -d'"' -f4)
-    req_php=$(echo  "$response" | grep -o '"requires_php":"[^"]*"' | head -1 | cut -d'"' -f4)
-    echo "${version}|${requires}|${req_php}"
-}
+    if [ "$type" = "plugin" ]; then
+        url="https://api.wordpress.org/plugins/info/1.0/${slug}.json"
+    else
+        url="https://api.wordpress.org/themes/info/1.2/?action=theme_information&request%5Bslug%5D=${slug}"
+    fi
 
-# Echoes "latest_version|requires_wp|requires_php" or "N/A||" on failure.
-check_wp_theme_api() {
-    local slug="$1"
-    local response
-    response=$(curl -sf \
-        "https://api.wordpress.org/themes/info/1.2/?action=theme_information&request%5Bslug%5D=${slug}") \
-        || { echo "N/A||"; return; }
+    response=$(curl -sf "$url") || { echo "N/A||"; return; }
     [[ "$response" != *'"version"'* ]] && { echo "N/A||"; return; }
 
     local version requires req_php
@@ -380,11 +324,11 @@ check_wp_theme_api() {
 }
 
 # ---- Header Parsers ---------------------------------------------------------
-get_plugin_name()    { grep -i "Plugin Name:" "$1" 2>/dev/null | head -1 | sed 's/.*Plugin Name:[[:space:]]*//' | sed 's/[[:space:]]*$//'; }
-get_plugin_version() { grep -i "^[[:space:]]*\*[[:space:]]*Version:" "$1" 2>/dev/null | head -1 | sed 's/.*Version:[[:space:]]*//' | sed 's/[[:space:]]*$//'; }
+get_plugin_name()    { grep -i "Plugin Name:"                    "$1" 2>/dev/null | head -1 | sed 's/.*Plugin Name:[[:space:]]*//' | sed 's/[[:space:]]*$//'; }
+get_plugin_version() { grep -i "^[[:space:]]*\*[[:space:]]*Version:" "$1" 2>/dev/null | head -1 | sed 's/.*Version:[[:space:]]*//'    | sed 's/[[:space:]]*$//'; }
 get_plugin_slug()    { dirname "$1" | xargs basename; }
-get_theme_name()     { grep -i "^Theme Name:" "$1" 2>/dev/null | head -1 | sed 's/.*Theme Name:[[:space:]]*//' | sed 's/[[:space:]]*$//'; }
-get_theme_version()  { grep -i "^Version:" "$1" 2>/dev/null | head -1 | sed 's/.*Version:[[:space:]]*//' | sed 's/[[:space:]]*$//'; }
+get_theme_name()     { grep -i "^Theme Name:"                    "$1" 2>/dev/null | head -1 | sed 's/.*Theme Name:[[:space:]]*//'  | sed 's/[[:space:]]*$//'; }
+get_theme_version()  { grep -i "^Version:"                       "$1" 2>/dev/null | head -1 | sed 's/.*Version:[[:space:]]*//'     | sed 's/[[:space:]]*$//'; }
 get_theme_slug() {
     local dir="$1" slug
     slug=$(grep -i "^Text Domain:" "${dir}/style.css" 2>/dev/null | head -1 | sed 's/.*Text Domain:[[:space:]]*//' | sed 's/[[:space:]]*$//')
@@ -415,63 +359,46 @@ git_handle_update() {
 }
 
 # ---- Download & Install -----------------------------------------------------
-update_plugin() {
-    local slug="$1" version="$2" name="$3" old_version="$4"
-    local zip_file="${TEMP_DIR}/${slug}.zip"
-    local extract_dir="${TEMP_DIR}/extract-${slug}"
 
-    echo "Downloading ${slug} v${version}..."
-    if curl -L --fail -o "$zip_file" "https://downloads.wordpress.org/plugin/${slug}.${version}.zip"; then
-        mkdir -p "$extract_dir"
-        unzip -q -o "$zip_file" -d "$extract_dir"
-        if [ -d "${extract_dir}/${slug}" ]; then
-            rm -rf "${PLUGIN_DIR:?}/${slug}"
-            mv "${extract_dir}/${slug}" "${PLUGIN_DIR}/"
-            echo "✅ Updated '${name}' (${slug}) to v${version}"
-            COUNT_UPDATED=$((COUNT_UPDATED + 1))
-            git_handle_update "$name" "$old_version" "$version" "${PLUGIN_DIR}/${slug}"
-        else
-            echo "❌ Extracted directory '${slug}' not found — the plugin slug may differ."
-            COUNT_FAILED=$((COUNT_FAILED + 1))
-        fi
-        rm -f "$zip_file"; rm -rf "$extract_dir"
+# Unified installer for plugins and themes.
+# Args: $1=type (plugin|theme)  $2=slug  $3=version  $4=name  $5=old_version
+do_update() {
+    local type="$1" slug="$2" version="$3" name="$4" old_version="$5"
+    local target_dir zip_file extract_dir
+
+    if [ "$type" = "plugin" ]; then
+        target_dir="$PLUGIN_DIR"
+        zip_file="${TEMP_DIR}/${slug}.zip"
     else
-        echo "❌ Download failed for ${slug} v${version}"
-        COUNT_FAILED=$((COUNT_FAILED + 1))
+        target_dir="$THEME_DIR"
+        zip_file="${TEMP_DIR}/${slug}-theme.zip"
     fi
-}
+    extract_dir="${TEMP_DIR}/extract-${slug}"
 
-update_theme() {
-    local slug="$1" version="$2" name="$3" old_version="$4"
-    local zip_file="${TEMP_DIR}/${slug}-theme.zip"
-    local extract_dir="${TEMP_DIR}/extract-theme-${slug}"
-
-    echo "Downloading theme ${slug} v${version}..."
-    if curl -L --fail -o "$zip_file" "https://downloads.wordpress.org/theme/${slug}.${version}.zip"; then
+    echo "Downloading ${type} ${slug} v${version}..."
+    if curl -L --fail -o "$zip_file" "https://downloads.wordpress.org/${type}/${slug}.${version}.zip"; then
         mkdir -p "$extract_dir"
         unzip -q -o "$zip_file" -d "$extract_dir"
         if [ -d "${extract_dir}/${slug}" ]; then
-            rm -rf "${THEME_DIR:?}/${slug}"
-            mv "${extract_dir}/${slug}" "${THEME_DIR}/"
-            echo "✅ Updated theme '${name}' (${slug}) to v${version}"
+            rm -rf "${target_dir:?}/${slug}"
+            mv "${extract_dir}/${slug}" "${target_dir}/"
+            echo "✅ Updated ${type} '${name}' (${slug}) to v${version}"
             COUNT_UPDATED=$((COUNT_UPDATED + 1))
-            git_handle_update "$name" "$old_version" "$version" "${THEME_DIR}/${slug}"
+            git_handle_update "$name" "$old_version" "$version" "${target_dir}/${slug}"
         else
-            /* Lines 398-399 omitted */
+            echo "❌ Extracted directory '${slug}' not found — the ${type} slug may differ."
             COUNT_FAILED=$((COUNT_FAILED + 1))
         fi
-        rm -f "$zip_file"; rm -rf "$extract_dir"
+        rm -f "$zip_file"
+        rm -rf "$extract_dir"
     else
-        echo "❌ Download failed for theme ${slug} v${version}"
+        echo "❌ Download failed for ${type} ${slug} v${version}"
         COUNT_FAILED=$((COUNT_FAILED + 1))
     fi
 }
 
 # ---- Checksum Verification --------------------------------------------------
-# Mirrors the WP-CLI v2.12.0 'wp core verify-checksums' feature.
-# Fetches official MD5 hashes from the WordPress.org checksums API and
-# compares them against every tracked core file in your WP installation.
-# Requires python3 for JSON parsing; skips gracefully if unavailable.
+# Mirrors WP-CLI v2.12.0 'wp core verify-checksums'.
 verify_wp_checksums() {
     if ! command -v python3 >/dev/null 2>&1; then
         echo "⚠️  python3 is required for --verify-checksums but was not found. Skipping."
@@ -503,7 +430,7 @@ failures = []
 for rel_path, expected_md5 in checksums.items():
     full_path = os.path.join(wp_root, rel_path)
     if not os.path.exists(full_path):
-        continue  # Optional files that may not be present are skipped
+        continue
     with open(full_path, "rb") as f:
         actual = hashlib.md5(f.read()).hexdigest()
     if actual != expected_md5:
@@ -525,93 +452,114 @@ PYEOF
     fi
 }
 
+# ---- Scanner ----------------------------------------------------------------
+
+# Scans plugins or themes, checks for updates, and prompts to apply them.
+# Args: $1=type (plugin|theme)
+scan_extensions() {
+    local type="$1"
+    local label dir
+    [ "$type" = "plugin" ] && { label="plugins"; dir="$PLUGIN_DIR"; } \
+                           || { label="themes";  dir="$THEME_DIR";  }
+
+    echo "Scanning ${label}..."
+    printf '%.0s=' $(seq 1 $((${#label} + 10))); echo
+
+    declare -a entries=()
+
+    if [ "$type" = "plugin" ]; then
+        while IFS= read -r file; do
+            grep -q "Plugin Name:" "$file" 2>/dev/null || continue
+            local p_name p_ver p_slug
+            p_name=$(get_plugin_name "$file")
+            p_ver=$(get_plugin_version "$file")
+            p_slug=$(get_plugin_slug "$file")
+            [ -z "$p_name" ] || [ -z "$p_ver" ] || [ -z "$p_slug" ] && continue
+            entries+=("${p_name}|${p_ver}|${p_slug}")
+        done < <(find "$dir" -maxdepth 2 -type f -name "*.php")
+    else
+        while IFS= read -r d; do
+            local style_file="${d}/style.css"
+            [ -f "$style_file" ] || continue
+            local t_name t_ver t_slug
+            t_name=$(get_theme_name "$style_file")
+            t_ver=$(get_theme_version "$style_file")
+            t_slug=$(get_theme_slug "$d")
+            [ -z "$t_name" ] || [ -z "$t_ver" ] || [ -z "$t_slug" ] && continue
+            entries+=("${t_name}|${t_ver}|${t_slug}")
+        done < <(find "$dir" -mindepth 1 -maxdepth 1 -type d)
+    fi
+
+    local name current_ver slug
+    for entry in "${entries[@]}"; do
+        IFS='|' read -r name current_ver slug <<< "$entry"
+
+        if [ "$SKIP_UPDATE_CHECK" -eq 1 ]; then
+            printf "%-40s Current: v%-12s Latest: %s\n" "$name" "$current_ver" "(skipped)"
+            COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+            continue
+        fi
+
+        local latest_ver req_wp req_php
+        IFS='|' read -r latest_ver req_wp req_php \
+            <<< "$(query_wp_api "$type" "$slug")"
+
+        local status
+        status=$(get_update_status "$current_ver" "$latest_ver" "$req_wp" "$req_php")
+
+        printf "%-40s Current: v%-12s Latest: v%-12s" "$name" "$current_ver" "$latest_ver"
+
+        case "$status" in
+            none)
+                echo " [up to date]"
+                COUNT_UPTODATE=$((COUNT_UPTODATE + 1))
+                ;;
+            unavailable)
+                echo " [unavailable — requires WP≥${req_wp} / PHP≥${req_php}]"
+                COUNT_UNAVAILABLE=$((COUNT_UNAVAILABLE + 1))
+                ;;
+            pinned)
+                echo " [pinned by version constraint]"
+                COUNT_PINNED=$((COUNT_PINNED + 1))
+                ;;
+            available)
+                echo " [UPDATE AVAILABLE]"
+                if [ "$DRY_RUN" -eq 1 ]; then
+                    echo "  → (dry run) would update to v${latest_ver}"
+                    COUNT_UPDATED=$((COUNT_UPDATED + 1))
+                elif [ "$AUTO_YES" -eq 1 ]; then
+                    do_update "$type" "$slug" "$latest_ver" "$name" "$current_ver"
+                else
+                    local _confirm
+                    read -r -p "  → Update '${name}' to v${latest_ver}? [y/N] " _confirm
+                    if [[ "$_confirm" =~ ^[Yy]$ ]]; then
+                        do_update "$type" "$slug" "$latest_ver" "$name" "$current_ver"
+                    else
+                        echo "  → Skipped."
+                        COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+                    fi
+                fi
+                ;;
+        esac
+        echo
+    done
+}
+
 # =============================================================================
 # Main Execution
 # =============================================================================
 
 enable_maintenance_mode
 
-# ---- Optional: WP Core Checksum Verification --------------------------------
 if [ "$VERIFY_CHECKSUMS" -eq 1 ]; then
     echo "=== WP Core Checksum Verification ==="
     verify_wp_checksums
     echo
 fi
 
-# ---- Plugins ----------------------------------------------------------------
-if [ "$THEMES_ONLY" -eq 0 ]; then
-    echo "Scanning plugins..."
-    echo "==================="
+[ "$THEMES_ONLY"  -eq 0 ] && scan_extensions plugin
+[ "$PLUGINS_ONLY" -eq 0 ] && scan_extensions theme
 
-    declare -a plugins=()
-    while IFS= read -r file; do
-        if grep -q "Plugin Name:" "$file" 2>/dev/null; then
-            /* Lines 487-491 omitted */
-            plugins+=("${p_name}|${p_ver}|${p_slug}")
-        fi
-    done < <(find "$PLUGIN_DIR" -maxdepth 2 -type f -name "*.php")
-
-    for entry in "${plugins[@]}"; do
-        IFS='|' read -r name current_ver slug <<< "$entry"
-
-        if [ "$SKIP_UPDATE_CHECK" -eq 1 ]; then
-            /* Lines 499-501 omitted */
-            continue
-        fi
-
-        IFS='|' read -r latest_ver req_wp req_php \
-            /* Lines 505-506 omitted */
-
-        status=$(get_update_status "$current_ver" "$latest_ver" "$req_wp" "$req_php")
-
-        printf "%-40s Current: v%-12s Latest: v%-12s" \
-            /* Lines 510-511 omitted */
-
-        case "$status" in
-        esac
-        echo
-    done
-fi
-
-# ---- Themes -----------------------------------------------------------------
-if [ "$PLUGINS_ONLY" -eq 0 ]; then
-    echo "Scanning themes..."
-    echo "=================="
-
-    declare -a themes=()
-    while IFS= read -r dir; do
-        style_file="${dir}/style.css"
-        [ -f "$style_file" ] || continue
-        t_name=$(get_theme_name "$style_file")
-        t_ver=$(get_theme_version "$style_file")
-        t_slug=$(get_theme_slug "$dir")
-        [ -z "$t_name" ] || [ -z "$t_ver" ] || [ -z "$t_slug" ] && continue
-        themes+=("${t_name}|${t_ver}|${t_slug}")
-    done < <(find "$THEME_DIR" -mindepth 1 -maxdepth 1 -type d)
-
-    for entry in "${themes[@]}"; do
-        IFS='|' read -r name current_ver slug <<< "$entry"
-
-        if [ "$SKIP_UPDATE_CHECK" -eq 1 ]; then
-            /* Lines 573-575 omitted */
-            continue
-        fi
-
-        IFS='|' read -r latest_ver req_wp req_php \
-            /* Lines 579-580 omitted */
-
-        status=$(get_update_status "$current_ver" "$latest_ver" "$req_wp" "$req_php")
-
-        printf "%-40s Current: v%-12s Latest: v%-12s" \
-            /* Lines 584-585 omitted */
-
-        case "$status" in
-        esac
-        echo
-    done
-fi
-
-# ---- Cleanup ----------------------------------------------------------------
 disable_maintenance_mode
 echo "Cleaning up temporary files..."
 rm -rf "$TEMP_DIR"
