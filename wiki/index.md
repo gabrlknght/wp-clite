@@ -1,6 +1,6 @@
 # wiki/ — Index
 
-**Generated:** 2026-06-25  
+**Generated:** 2026-06-28  
 **Purpose:** Content-oriented catalog of all wiki pages, organized by category. The LLM reads this first to locate relevant pages before answering queries.
 
 ---
@@ -17,8 +17,8 @@
 
 | Page | Summary | Last generated |
 |------|---------|----------------|
-| [wp-clite.sh](entities/wp-clite.sh.md) | Primary script architecture: sections, patterns, cross-references, line counts | 2026-06-25 |
-| [CLI Flags](entities/cli-flags.md) | Full flag reference table (15 flags), types, defaults, interactions | 2026-06-25 |
+| [wp-clite.sh](entities/wp-clite.sh.md) | Primary script architecture: sections, patterns, cross-references, line counts | 2026-06-28 |
+| [CLI Flags](entities/cli-flags.md) | Full flag reference table (18 flags), types, defaults, interactions | 2026-06-28 |
 | [WordPress.org APIs](sources/apis.md) | Three REST API endpoints: plugin info, theme info, core checksums — URLs, parsing, error handling | 2026-06-25 |
 
 ## Concepts
@@ -30,13 +30,14 @@
 | [Update Status Classification](concepts/update-status-classification.md) | Four-state classification (none/available/unavailable/pinned), decision flow, version comparison logic | 2026-06-25 |
 | [Checksum Verification](concepts/checksum-verification.md) | MD5 integrity checking workflow: fetch manifest → compare against disk → report mismatches; why python3 is required | 2026-06-25 |
 | [Version Pinning](concepts/version-pinning.md) | `--minor` and `--patch` constraints, comparison logic, priority ordering | 2026-06-25 |
-| [Git Integration](concepts/git-integration.md) | Auto-commit on update: detection, commit format, scope, flag interactions | 2026-06-25 |
+| [Git Integration](concepts/git-integration.md) | Auto-commit on update: detection, commit format, scope, flag interactions | 2026-06-28 |
+| [Pre-update Backup](concepts/pre-update-backup.md) | Timestamped `cp -r` backup before replacing; ephemeral storage in temp dir; cleanup behavior | 2026-06-28 |
 
 ## Log
 
 | Page | Summary | Last generated |
 |------|---------|----------------|
-| [log.md](log.md) | Chronological change log with `## [YYYY-MM-DD] type | title` entries for ingests, queries, and lint passes | 2026-06-25 |
+| [log.md](log.md) | Chronological change log with `## [YYYY-MM-DD] type | title` entries for ingests, queries, and lint passes | 2026-06-28 |
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Type:** bash executable  
 **Size:** 580 lines (~22 KB)  
-**Version:** 2.1.0  
+**Version:** 2.2.0  
 **License:** MIT
 
 ## Summary
@@ -28,6 +28,9 @@ The single entry point and only deliverable of the project. Encapsulates every f
 | Git operations | ~25 | `check_git()`, `git_handle_update()` |
 | Updater (`do_update`) | ~30 | Download → unzip → atomic replace flow |
 | Checksum verification | ~40 | Spawns python3 inline script against checksums JSON |
+| Changelog extraction (`get_changelog`) | ~20 | python3 inline script parses `sections.changelog` from plugin API JSON. The theme_information API doesn't expose changelog data (verified empirically — themes only ever return a `description` section), so this is a no-op for themes |
+| Backup creation (`create_backup`) | ~10 | `cp -r` to timestamped backup directory |
+| Slug skip check (`is_skipped`) | ~7 | Linear scan of space-separated `SKIP_LIST` |
 | Scanner (`scan_extensions`) | ~75 | Iterates plugins/themes, classifies status, prompts or auto-applies |
 | Summary output | ~15 | Final table with update counts |
 

@@ -61,6 +61,9 @@ bash wp-clite.sh [options]
 | `--themes-only` | Scan and update themes only; skip the plugins. |
 | `--minor` | **Version pinning.** Only update within the same major version. An update from `2.1.0` to `3.0.0` is skipped; `2.1.0` to `2.2.0` is allowed. *(Mirrors WP-CLI v2.10.0 `--minor` flag.)* |
 | `--patch` | **Version pinning.** Only update within the same major.minor version. An update from `2.1.0` to `2.2.0` is skipped; `2.1.0` to `2.1.4` is allowed. *(Mirrors WP-CLI v2.10.0 `--patch` flag.)* |
+| `--skip <slug ...>` | Skip specific plugins or themes by slug. Accepts one or more space-separated slugs. *(e.g. `--skip yoast-seo contact-form-7`)* |
+| `--backup` | Create a timestamped backup of the plugin/theme directory before updating. Backups are stored in `/tmp/wp-clite-backups/` and persist after the script exits, so they remain available as a rollback point. |
+| `--changelog` | Display the changelog from the WordPress.org API before prompting to update. Helps you review what's changing before committing. *(Mirrors WP-CLI's `wp plugin info --changelog` pattern.)* |
 | `--skip-update-check` | List all installed plugins and themes with their local versions without querying the WordPress.org API at all. Useful for inventorying an air-gapped site. *(Mirrors WP-CLI v2.12.0 `--skip-update-check` flag.)* |
 | `--verify-checksums` | Fetch the official MD5 checksums for your installed WordPress core version from the WordPress.org API and compare them against every tracked file in your installation. Reports any modified or corrupted files. Requires `python3`. *(Mirrors WP-CLI v2.12.0 `wp core verify-checksums`.)* |
 | `--maintenance-mode` | Write a `.maintenance` file to the WordPress root before updates begin and remove it when done. This activates WordPress's built-in maintenance screen for site visitors during the update window. |
@@ -177,6 +180,27 @@ bash wp-clite.sh \
     --no-git \
     --wp-version 6.5.3 \
     --php-version 8.2.0
+
+# Skip specific plugins you don't want to update
+bash wp-clite.sh \
+    --wp-path /var/www/html \
+    --skip yoast-seo contact-form-7
+
+# Full update with backups and changelog review (auto-approve)
+bash wp-clite.sh \
+    --wp-path /var/www/html \
+    --backup \
+    --changelog \
+    --yes \
+    --maintenance-mode \
+    --log update-$(date +%F).log
+
+# Update with backups, skip one plugin, review changelogs before approving
+bash wp-clite.sh \
+    --wp-path /var/www/html \
+    --backup \
+    --changelog \
+    --skip broken-plugin
 ```
 
 ---
@@ -194,6 +218,9 @@ This script draws directly from behavior introduced in recent WP-CLI releases. T
 | `--maintenance-mode` | `wp maintenance-mode activate` | v2.x |
 | Git commit on update | `wp plugin update` with version control integration | — |
 | End-of-run summary table | `wp plugin update` result output | v2.x |
+| `--skip` (skip by slug) | `wp plugin update --skip=<slug>` | v2.10.0 |
+| `--changelog` (show changelog) | `wp plugin info <slug> --field=changelog` | v1.5.0 |
+| `--backup` (pre-update backup) | (manual backup pattern) | — |
 
 ---
 

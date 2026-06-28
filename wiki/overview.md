@@ -43,9 +43,13 @@ wp-clite/
 | Update discovery | WordPress.org REST API (`info/1.0/<slug>.json`) |
 | Version compatibility | Compares installed WP version against `requires`; PHP version against `requires_php` |
 | Download & deploy | `curl -L → /tmp → unzip → mv` (atomic replace) |
+| Pre-update backup | `cp -r` to timestamped backup dir before replacing |
 | Checksum verification | Fetches checksums JSON from WordPress.org; uses `python3 hashlib.md5` |
 | Git commits | `git add + git commit chore: <name> update v<old>→v<new>` |
 | Version pinning | `--minor` (same major only), `--patch` (same major.minor only) |
+| Slug skip list | `--skip <slug ...>` — linear scan of space-separated slugs before API query |
+| Changelog display | `--changelog` — python3-based changelog extraction from API response |
+| Maintenance mode | `wp maintenance-mode activate` |
 
 ## WP-CLI Feature Mapping
 
@@ -55,6 +59,9 @@ wp-clite/
 | `requires`/`requires_php` check | `unavailable` state in `wp plugin list` | v2.12.0 |
 | `--skip-update-check` | `wp plugin list --skip-update-check` | v2.12.0 |
 | `--verify-checksums` | `wp core verify-checksums` | v2.12.0 |
+| `--skip <slug>` | `wp plugin update --skip=<slug>` | v2.10.0 |
+| `--changelog` (display) | `wp plugin info <slug> --field=changelog` | v1.5.0 |
+| `--backup` (pre-update) | (manual backup pattern) | — |
 | Maintenance mode | `wp maintenance-mode activate` | v2.x |
 | Git commit on update | (native WP-CLI integration) | — |
 | Summary table output | `wp plugin update` result rendering | v2.x |

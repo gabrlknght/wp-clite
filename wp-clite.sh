@@ -2,7 +2,7 @@
 
 # -----------------------------------------------------------------------------
 # WP-CLite — WP-CLI "Lite" Edition
-# Version: 2.1.0
+# Version: 2.2.0
 #
 # Manages WordPress plugin and theme updates without requiring WP-CLI or
 # direct database access. Uses the WordPress.org REST API for version and
@@ -17,6 +17,9 @@
 #   --no-git               Skip all git operations.
 #   --minor                Only update within the same major version (e.g. 2.x).
 #   --patch                Only update within the same major.minor (e.g. 2.1.x).
+#   --skip <slug ...>      Skip specific plugins/themes by slug (space-separated).
+#   --backup               Create timestamped backup before each update.
+#   --changelog            Show changelog before prompting to update.
 #   --skip-update-check    List installed items without querying the API.
 #   --verify-checksums     Verify WP core file integrity via checksums API.
 #   --maintenance-mode     Write .maintenance to WP root during updates.
@@ -39,9 +42,14 @@ PATCH_ONLY=0
 SKIP_UPDATE_CHECK=0
 VERIFY_CHECKSUMS=0
 MAINTENANCE_MODE=0
+SHOW_CHANGELOG=0
+BACKUP_BEFORE=0
 WP_PATH="."
 WP_VERSION_OVERRIDE=""
 PHP_VERSION_OVERRIDE=""
+
+# Space-separated list of slugs to skip (populated by --skip)
+SKIP_LIST=""
 
 # ---- Counters ---------------------------------------------------------------
 COUNT_UPDATED=0
@@ -64,6 +72,9 @@ show_help() {
     echo "  --no-git               Skip all git operations."
     echo "  --minor                Only update within the same major version."
     echo "  --patch                Only update within the same major.minor version."
+    echo "  --skip <slug ...>      Skip specific plugin/theme(s) by slug (space-separated)."
+    echo "  --backup               Create a timestamped backup before each update."
+    echo "  --changelog            Show the plugin/theme changelog before prompting to update."
     echo "  --skip-update-check    List installed versions; skip all API queries."
     echo "  --verify-checksums     Verify WP core file integrity via checksums API."
     echo "  --maintenance-mode     Create .maintenance in WP root during updates."
@@ -77,6 +88,9 @@ show_help() {
     echo "  bash $0 --wp-path /var/www/html --patch --yes --maintenance-mode"
     echo "  bash $0 --wp-path /var/www/html --verify-checksums"
     echo "  bash $0 --wp-path /var/www/html --plugins-only --skip-update-check"
+    echo "  bash $0 --wp-path /var/www/html --skip yoast-seo contact-form-7"
+    echo "  bash $0 --wp-path /var/www/html --backup --changelog --yes"
+    echo "  bash $0 --wp-path /var/www/html --backup --skip akismet"
 }
 
 # ---- Dependencies -----------------------------------------------------------
@@ -152,6 +166,9 @@ while [[ $# -gt 0 ]]; do
         --no-git)            NO_GIT=1; shift ;;
         --minor)             MINOR_ONLY=1; shift ;;
         --patch)             PATCH_ONLY=1; shift ;;
+        --skip)              shift; while [[ $# -gt 0 && "$1" != --* ]]; do SKIP_LIST="$SKIP_LIST $1"; shift; done ;;
+        --backup)            BACKUP_BEFORE=1; shift ;;
+        --changelog)         SHOW_CHANGELOG=1; shift ;;
         --skip-update-check) SKIP_UPDATE_CHECK=1; shift ;;
         --verify-checksums)  VERIFY_CHECKSUMS=1; shift ;;
         --maintenance-mode)  MAINTENANCE_MODE=1; shift ;;
@@ -190,6 +207,7 @@ else
 fi
 
 TEMP_DIR="/tmp/wp-updates-$$"
+BACKUP_DIR="/tmp/wp-clite-backups"
 MAINTENANCE_FILE="${WP_PATH}/.maintenance"
 
 # ---- Environment Detection --------------------------------------------------
@@ -258,6 +276,63 @@ disable_maintenance_mode() {
 }
 
 # ---- Version Utilities ------------------------------------------------------
+
+# Returns 0 (true) if slug $1 is in the skip list.
+is_skipped() {
+    local slug="$1"
+    local s
+    for s in $SKIP_LIST; do
+        [ "$s" = "$slug" ] && return 0
+    done
+    return 1
+}
+
+# Creates a timestamped backup of $1 at $BACKUP_DIR/<type>-<slug>-<timestamp>/.
+# Args: $1=type (plugin|theme)  $2=slug  $3=source_dir
+create_backup() {
+    local type="$1" slug="$2" source_dir="$3"
+    if [ ! -d "$source_dir" ]; then
+        return 0
+    fi
+    local timestamp backup_path
+    timestamp=$(date +%Y%m%d-%H%M%S)
+    backup_path="${BACKUP_DIR}/${type}-${slug}-${timestamp}"
+    mkdir -p "$BACKUP_DIR"
+    cp -r "$source_dir" "$backup_path"
+    echo "💾 Backup created: $backup_path"
+}
+
+# Extracts the changelog text from a WordPress.org API JSON response.
+# Uses python3 for reliable JSON parsing. Checks sections.changelog (used by
+# the plugin API); the theme_information API does not expose changelog data,
+# so this is effectively a no-op for themes — it echoes nothing and the
+# caller's "if [ -n "$changelog" ]" check skips display.
+# Args: $1=type (plugin|theme)  $2=slug
+# Echoes the changelog text on success, empty on failure.
+get_changelog() {
+    local type="$1" slug="$2" url response
+
+    if [ "$type" = "plugin" ]; then
+        url="https://api.wordpress.org/plugins/info/1.0/${slug}.json"
+    else
+        url="https://api.wordpress.org/themes/info/1.2/?action=theme_information&request%5Bslug%5D=${slug}"
+    fi
+
+    response=$(curl -sf "$url") || return 1
+    echo "$response" | python3 -c '
+import sys, json, re
+data = json.load(sys.stdin)
+cl = data.get("changelog", "") or data.get("sections", {}).get("changelog", "")
+if cl:
+    # Strip HTML tags, collapse whitespace
+    cl = re.sub(r"<[^>]+>", " ", cl)
+    cl = re.sub(r"\s+", " ", cl).strip()
+    # Truncate to 200 chars for display
+    if len(cl) > 200:
+        cl = cl[:197] + "..."
+    print(cl)
+'
+}
 
 # Returns 0 (true) if installed version $1 satisfies requirement $2.
 version_gte() {
@@ -501,6 +576,14 @@ scan_extensions() {
         fi
 
         local latest_ver req_wp req_php
+        # Skip explicitly requested slugs
+        if is_skipped "$slug"; then
+            printf "%-40s Current: v%-12s Latest: %s\n" "$name" "$current_ver" "(skipped by --skip)"
+            COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+            echo
+            continue
+        fi
+
         IFS='|' read -r latest_ver req_wp req_php \
             <<< "$(query_wp_api "$type" "$slug")"
 
@@ -524,15 +607,36 @@ scan_extensions() {
                 ;;
             available)
                 echo " [UPDATE AVAILABLE]"
+
+                # Show changelog if requested
+                if [ "$SHOW_CHANGELOG" -eq 1 ]; then
+                    local changelog
+                    changelog=$(get_changelog "$type" "$slug")
+                    if [ -n "$changelog" ]; then
+                        echo "  📋 Changelog: $changelog"
+                    fi
+                fi
+
                 if [ "$DRY_RUN" -eq 1 ]; then
                     echo "  → (dry run) would update to v${latest_ver}"
                     COUNT_UPDATED=$((COUNT_UPDATED + 1))
                 elif [ "$AUTO_YES" -eq 1 ]; then
+                    # Backup before update if requested
+                    if [ "$BACKUP_BEFORE" -eq 1 ]; then
+                        local source_dir
+                        [ "$type" = "plugin" ] && source_dir="${PLUGIN_DIR}/${slug}" || source_dir="${THEME_DIR}/${slug}"
+                        create_backup "$type" "$slug" "$source_dir"
+                    fi
                     do_update "$type" "$slug" "$latest_ver" "$name" "$current_ver"
                 else
                     local _confirm
                     read -r -p "  → Update '${name}' to v${latest_ver}? [y/N] " _confirm
                     if [[ "$_confirm" =~ ^[Yy]$ ]]; then
+                        if [ "$BACKUP_BEFORE" -eq 1 ]; then
+                            local source_dir
+                            [ "$type" = "plugin" ] && source_dir="${PLUGIN_DIR}/${slug}" || source_dir="${THEME_DIR}/${slug}"
+                            create_backup "$type" "$slug" "$source_dir"
+                        fi
                         do_update "$type" "$slug" "$latest_ver" "$name" "$current_ver"
                     else
                         echo "  → Skipped."
