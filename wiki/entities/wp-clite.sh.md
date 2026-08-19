@@ -1,7 +1,7 @@
 # Entity: wp-clite.sh (Primary Script)
 
 **Type:** bash executable  
-**Size:** 580 lines (~22 KB)  
+**Size:** 684 lines (~25 KB)  
 **Version:** 2.2.0  
 **License:** MIT
 
