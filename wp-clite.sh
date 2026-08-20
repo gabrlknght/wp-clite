@@ -98,8 +98,8 @@ check_dependencies() {
     local missing_critical=() missing_optional=()
 
     if ! command -v curl >/dev/null 2>&1; then
-        if [ "$SKIP_UPDATE_CHECK" -eq 0 ]; then
-            missing_critical+=("curl      — needed for WordPress.org API queries and plugin/theme downloads")
+        if [ "$SKIP_UPDATE_CHECK" -eq 0 ] || [ "$VERIFY_CHECKSUMS" -eq 1 ]; then
+            missing_critical+=("curl      — needed for WordPress.org API queries, plugin/theme downloads, and --verify-checksums")
         else
             missing_optional+=("curl      — needed to download updates (not required with --skip-update-check)")
         fi
@@ -401,7 +401,17 @@ query_wp_api() {
 # ---- Header Parsers ---------------------------------------------------------
 get_plugin_name()    { grep -i "Plugin Name:"                    "$1" 2>/dev/null | head -1 | sed 's/.*Plugin Name:[[:space:]]*//' | sed 's/[[:space:]]*$//'; }
 get_plugin_version() { grep -i "^[[:space:]]*\*[[:space:]]*Version:" "$1" 2>/dev/null | head -1 | sed 's/.*Version:[[:space:]]*//'    | sed 's/[[:space:]]*$//'; }
-get_plugin_slug()    { dirname "$1" | xargs basename; }
+get_plugin_slug() {
+    local file="$1" dir
+    dir=$(dirname "$file")
+    if [ "$dir" = "$PLUGIN_DIR" ]; then
+        # Single-file plugin living directly in the plugins dir (e.g. hello.php) —
+        # its slug is the filename, not the plugins directory's own name.
+        basename "$file" .php
+    else
+        basename "$dir"
+    fi
+}
 get_theme_name()     { grep -i "^Theme Name:"                    "$1" 2>/dev/null | head -1 | sed 's/.*Theme Name:[[:space:]]*//'  | sed 's/[[:space:]]*$//'; }
 get_theme_version()  { grep -i "^Version:"                       "$1" 2>/dev/null | head -1 | sed 's/.*Version:[[:space:]]*//'     | sed 's/[[:space:]]*$//'; }
 get_theme_slug() {

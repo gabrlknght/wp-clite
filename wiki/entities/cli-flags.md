@@ -53,7 +53,7 @@
 
 - `--dry-run` → implicitly sets `NO_GIT=1` (no git commits in simulation mode)
 - `--minor` + `--patch` — both can be set; `--patch` is stricter and takes precedence
-- `--skip-update-check` makes all API-dependent flags (`--verify-checksums`, download) no-op
+- `--skip-update-check` only disables the per-plugin/theme update-check API calls in `scan_extensions()` — it does **not** affect `--verify-checksums`, which runs its own independent checksums-API call in `verify_wp_checksums()` regardless of this flag. `check_dependencies()` accounts for this: curl is required if either flag needs it.
 - `--dry-run` → `--backup` no-ops (no real backup created, no files modified)
 - `--skip` slugs checked before API query — skipped entries never reach the update prompt
 - `--changelog` only displayed for `available` entries; up-to-date/pinned/unavailable items skip changelog display

@@ -16,6 +16,7 @@ Prevents automatic major or minor version updates when the user specifies a cons
 | 2.1.0   | 3.0.0  | ❌ No   |
 | 2.1.0   | 2.2.0  | ✅ Yes  |
 | 6.5.3   | 6.6.0  | ✅ Yes  |
+| 7.0.0   | 7.1.0  | ✅ Yes  |
 
 Implementation: compares `cut -d. -f1` (first segment only)
 
@@ -26,6 +27,7 @@ Implementation: compares `cut -d. -f1` (first segment only)
 | 2.1.3   | 2.2.0  | ❌ No   |
 | 2.1.3   | 2.1.9  | ✅ Yes  |
 | 6.5.0   | 6.5.3  | ✅ Yes  |
+| 7.0.0   | 7.0.2  | ✅ Yes  |
 
 Implementation: compares `cut -d. -f1,2` (first two segments)
 

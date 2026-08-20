@@ -11,13 +11,14 @@ A drop-in replacement for WP-CLI update commands that uses only the WordPress.or
 - **Zero dependencies** — no WP-CLI binary, no Composer, no database driver
 - **Offline capable** — `--skip-update-check` allows inventories without external APIs
 - **WP-CLI parity for updates** — mirrors behavior from WP-CLI v2.10–v2.12 for update and integrity workflows only
+- **WordPress 7.x compatible** — tested against WP 7.1; `requires`/`requires_php` checks work with WP 7.x plugin metadata
 - **Atomic operations** — downloads extracted to `/tmp`, then atomically replaced on disk
 
 ## Architecture
 
 ```
 wp-clite/
-├── wp-clite.sh          # Single file: all logic (580 lines)
+├── wp-clite.sh          # Single file: all logic (684 lines)
 ├── README.md            # Documentation (formatted per repo conventions)
 ├── wiki/                # LLM-generated wiki index and cross-references
 │   ├── overview.md      # This file — synthesized project view
@@ -57,6 +58,7 @@ wp-clite/
 |---------------|-------------------|---------------------|
 | `--minor` / `--patch` | `wp plugin update --minor/--patch` | v2.10.0 |
 | `requires`/`requires_php` check | `unavailable` state in `wp plugin list` | v2.12.0 |
+| PHP 8.4 compatibility | Implicitly nullable params, CSV escaping, `E_STRICT` removal | v2.12.0 |
 | `--skip-update-check` | `wp plugin list --skip-update-check` | v2.12.0 |
 | `--verify-checksums` | `wp core verify-checksums` | v2.12.0 |
 | `--skip <slug>` | `wp plugin update --skip=<slug>` | v2.10.0 |

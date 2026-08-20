@@ -4,7 +4,7 @@
 
 A single Bash script that manages WordPress plugin and theme updates using nothing but the [WordPress.org REST API](https://api.wordpress.org) and standard Unix tools (`curl`, `unzip`, optionally `python3` and `git`). Drop it anywhere you have shell access to a WordPress installation — no WP-CLI binary, no `wp-config.php` parsing, and no live database connection needed.
 
-Originally conceived as a lightweight drop-in for environments where WP-CLI installation is impractical (shared hosting, CI pipelines, minimal containers), this script has grown to integrate the featureset of WP-CLI v2.10–v2.12 for the update and integrity-checking workflows. If you need more than what this script provides, support the OG project that inspired it: https://wp-cli.org
+Originally conceived as a lightweight drop-in for environments where WP-CLI installation is impractical (shared hosting, CI pipelines, minimal containers), this script has grown to integrate the featureset of WP-CLI v2.10–v2.12 for the update and integrity-checking workflows. Compatible with WordPress 7.x — tested against WP 7.1. If you need more than what this script provides, support the OG project that inspired it: https://wp-cli.org
 
 ---
 
@@ -67,7 +67,7 @@ bash wp-clite.sh [options]
 | `--skip-update-check` | List all installed plugins and themes with their local versions without querying the WordPress.org API at all. Useful for inventorying an air-gapped site. *(Mirrors WP-CLI v2.12.0 `--skip-update-check` flag.)* |
 | `--verify-checksums` | Fetch the official MD5 checksums for your installed WordPress core version from the WordPress.org API and compare them against every tracked file in your installation. Reports any modified or corrupted files. Requires `python3`. *(Mirrors WP-CLI v2.12.0 `wp core verify-checksums`.)* |
 | `--maintenance-mode` | Write a `.maintenance` file to the WordPress root before updates begin and remove it when done. This activates WordPress's built-in maintenance screen for site visitors during the update window. |
-| `--wp-version <ver>` | Override the auto-detected WordPress version used for compatibility checks (e.g. `6.5.3`). Useful when `wp-includes/version.php` is not readable. |
+| `--wp-version <ver>` | Override the auto-detected WordPress version used for compatibility checks (e.g. `7.1.0`). Useful when `wp-includes/version.php` is not readable. |
 | `--php-version <ver>` | Override the auto-detected PHP version used for compatibility checks (e.g. `8.1.0`). Useful in environments without a `php` CLI binary. |
 | `--no-git` | Skip all git operations even if a repository is detected. |
 | `--help` | Print the usage message and exit. |
@@ -178,7 +178,7 @@ bash wp-clite.sh \
     --dry-run \
     --yes \
     --no-git \
-    --wp-version 6.5.3 \
+    --wp-version 7.1.0 \
     --php-version 8.2.0
 
 # Skip specific plugins you don't want to update
