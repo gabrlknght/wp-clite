@@ -17,8 +17,8 @@
 
 | Page | Summary | Last generated |
 |------|---------|----------------|
-| [wp-clite.sh](entities/wp-clite.sh.md) | Primary script architecture: sections, patterns, cross-references, line counts | 2026-08-19 |
-| [CLI Flags](entities/cli-flags.md) | Full flag reference table (18 flags), types, defaults, interactions | 2026-08-19 |
+| [wp-clite.sh](entities/wp-clite.sh.md) | Primary script architecture: sections, patterns, cross-references, line counts | 2026-08-20 |
+| [CLI Flags](entities/cli-flags.md) | Full flag reference table (18 flags), types, defaults, interactions | 2026-08-20 |
 | [WordPress.org APIs](sources/apis.md) | Three REST API endpoints: plugin info, theme info, core checksums — URLs, parsing, error handling | 2026-08-19 |
 
 ## Concepts
@@ -37,7 +37,7 @@
 
 | Page | Summary | Last generated |
 |------|---------|----------------|
-| [log.md](log.md) | Chronological change log with `## [YYYY-MM-DD] type | title` entries for ingests, queries, and lint passes | 2026-08-19 |
+| [log.md](log.md) | Chronological change log with `## [YYYY-MM-DD] type | title` entries for ingests, queries, and lint passes | 2026-08-20 |
 
 ---
 

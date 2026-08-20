@@ -1,7 +1,7 @@
 # Entity: wp-clite.sh (Primary Script)
 
 **Type:** bash executable  
-**Size:** 684 lines (~25 KB)  
+**Size:** 694 lines (~25 KB)  
 **Version:** 2.2.0  
 **License:** MIT
 
@@ -15,7 +15,7 @@ The single entry point and only deliverable of the project. Encapsulates every f
 |---------|-------|---------|
 | Header + flags/defaults | ~50 | CLI flag variables with defaults |
 | `show_help()` | ~20 | Usage display with examples |
-| `check_dependencies()` | ~40 | Validates curl/unzip/python3/git availability (critical vs optional) |
+| `check_dependencies()` | ~40 | Validates curl/unzip/python3/git availability (critical vs optional). curl is critical whenever `--skip-update-check` is off *or* `--verify-checksums` is set — the checksum verifier calls curl independent of the update-check flag |
 | Argument parsing loop | ~25 | `while [[ $# -gt 0 ]]` case dispatch |
 | Log setup + exec tee | ~10 | Redirects stdout+stderr to file via process substitution |
 | Path resolution | ~15 | Resolves plugin/theme dirs, creates /tmp working dir |
@@ -24,7 +24,7 @@ The single entry point and only deliverable of the project. Encapsulates every f
 | Maintenance mode | ~15 | `enable_maintenance_mode()`, `disable_maintenance_mode()` — writes/removes `.maintenance` |
 | Version utilities | ~30 | `version_gte()`, `update_allowed_by_pinning()`, `get_update_status()` |
 | API handler (`query_wp_api`) | ~20 | Fetches `<type>/<slug>` JSON from WordPress.org |
-| Header parsers (6 funcs) | ~25 | Extracts name/version/slug from plugin/theme headers |
+| Header parsers (6 funcs) | ~25 | Extracts name/version/slug from plugin/theme headers. `get_plugin_slug()` returns the filename (minus `.php`) for single-file plugins living directly in `PLUGIN_DIR` (e.g. `hello.php`), and the containing directory's name for subdirectory plugins |
 | Git operations | ~25 | `check_git()`, `git_handle_update()` |
 | Updater (`do_update`) | ~30 | Download → unzip → atomic replace flow |
 | Checksum verification | ~40 | Spawns python3 inline script against checksums JSON |

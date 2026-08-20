@@ -5,6 +5,25 @@
 
 ---
 
+## [2026-08-20] fix | single-file plugin slug + curl dependency gap
+
+Bug-hunt pass over `wp-clite.sh` found and fixed two issues:
+
+| Bug | Location | Fix |
+|-----|----------|-----|
+| `get_plugin_slug()` used `dirname \| xargs basename` on the file path, which for single-file plugins living directly in `wp-content/plugins/` (e.g. `hello.php`) returns the plugins folder's own name instead of the plugin's actual slug — silently sending the wrong slug to the WordPress.org API and getting `N/A` back with no explanation | `get_plugin_slug()` | Now checks whether the file's directory equals `PLUGIN_DIR`; if so, returns the filename minus `.php`, otherwise the containing directory's name (unchanged subdirectory-plugin behavior) |
+| `check_dependencies()` only treated `curl` as required when `--skip-update-check` was off, but `verify_wp_checksums()` calls curl regardless of that flag — running `--skip-update-check --verify-checksums` on a box without curl passed the dependency check and then failed later with an opaque "could not reach the API" error | `check_dependencies()` | curl is now marked critical when `--skip-update-check` is off **or** `--verify-checksums` is set |
+
+Also corrected a documentation error found during the same pass: `wiki/entities/cli-flags.md` claimed `--skip-update-check` makes `--verify-checksums` a no-op — it doesn't; the two are independent, which is exactly what made the curl-dependency bug possible in the first place.
+
+Verified: `bash -n` passes; smoke-tested `get_plugin_slug()` against both a single-file plugin path and a subdirectory plugin path, both resolve correctly.
+
+Docs updated to match: `wiki/entities/wp-clite.sh.md` (line count, `check_dependencies()` and header-parser descriptions), `wiki/entities/cli-flags.md` (flag interaction note), `wiki/index.md` (generated dates).
+
+Script grew from 684 to 694 lines.
+
+---
+
 ## [2026-08-19] docs | WordPress 7+ compatibility audit
 
 Audited all wiki and README content against the current WordPress 7.x ecosystem and WP-CLI v2.12.0 releases. Verified live against the WordPress.org plugin/info REST API (tested with Akismet: `requires: 5.8`, `tested: 7.1`, `requires_php: 7.2`).
